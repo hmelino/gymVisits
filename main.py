@@ -43,24 +43,42 @@ class Workout():
 
 	def addEntry(self,entryRaw):
 		entry=getDate(entryRaw)
-		gap=(entry-self.entry).total_seconds()/60
-		if gap>360: #ignore all bathroom/changing room entries
-			try:
-				workoutLenght=(self.exit-self.entry).total_seconds()/60
-
-				if workoutLenght>200:
-					# to fix this
-
-				self.addWorkout(workoutLenght,convertDate(self.entry))
-				self.good+=1
-				self.exit=None
-				self.entry=entry
-			except TypeError: #if exit doesnt exists
-				self.error+=1
-				self.entry=entry
+		if self.entry:
+			gap=(entry-self.entry).total_seconds()/60
+			if gap>360: #ignore all bathroom/changing room entries
+				try:
+					workoutLenght=(self.exit-self.entry).total_seconds()/60
+	
+					if workoutLenght>200:
+						if self.exit():
+							print('Missing exit')
+					
+					self.addWorkout(workoutLenght,convertDate(self.entry))
+					self.good+=1
+					self.exit=None
+					self.entry=entry
+				except TypeError: #if exit doesnt exists
+					self.error+=1
+					self.entry=entry
+		else:
+			self.entry=entry
 
 	def addExit(self,exitRaw):
+		#def missingExit():
+			#print((exit-self.entry).total_seconds()/60)
+		def doubleExit():
+			
+			if 'exit' in db[iN-1]: # if double exit
+				if self.entry: #if more than double exit
+					
+					workoutLenght=(self.exit-self.entry).total_seconds()/60
+					self.addWorkout(workoutLenght,convertDate(self.entry))
+					self.entry=None
+				
+		doubleExit()
+		
 		exit=getDate(exitRaw)
+		#missingExit()
 		self.exit=exit
 
 timeOfDayList=[]
@@ -71,7 +89,7 @@ exit=None
 w=Workout()
 for l in db[1:]:
 	iN=db.index(l)
-	print(iN,l)
+	print(l)
 	if 'exit' in l:
 		w.addExit(l)
 	if 'entry' in l:
@@ -79,10 +97,11 @@ for l in db[1:]:
 
 
 
-x=w.workouts
-y=w.timeOfDay
+x=w.timeOfDay
+y=w.workouts
 plt.scatter(x,y,alpha=0.3)
-plt.xlim(0,200)
+plt.xlim(0,24)
+#plt.xlim(0,200)
 #plt.ylim(0,max(workoutLenghtList)+20)
 plt.xlabel('Time of day')
 plt.ylabel('Workout lenght (mins)')
