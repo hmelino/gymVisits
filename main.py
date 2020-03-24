@@ -31,7 +31,9 @@ class Workout():
 	def processWorkout(self,date):
 		if self.entry and self.exit:
 			workoutTime=(self.exit-self.entry).total_seconds()/60
-			
+			if workoutTime<60:
+				print(workoutTime)
+				print()
 			self.workouts.append(workoutTime)
 			self.timeOfDay.append(convertDate(date))
 			self.good+=1
@@ -43,16 +45,21 @@ class Workout():
 		self.entry,self.exit=None,None
 		
 	def removeWrongWorkouts(self):
-		#counts average and remove off average data
-		averageWorkoutLimit=(sum(self.workouts)/len(self.workouts))*4
+		#counts average and remove data that are off by multiplier of 4
+		averageWorkout=(sum(self.workouts)/len(self.workouts))
+		aWUpper=averageWorkout*4
+		awLower=averageWorkout/4
 		cleanedWorkouts=[]
+		alreadyRemoved=0
 		for w in self.workouts:
 			iN=self.workouts.index(w)
-			if w < averageWorkoutLimit:
+			if w < aWUpper and w >awLower:
 				cleanedWorkouts.append(w)
 			else:
-				self.timeOfDay.pop(iN)
+				self.timeOfDay.pop(iN-alreadyRemoved)
+				alreadyRemoved+=1
 		self.workouts=cleanedWorkouts
+		self.error+=alreadyRemoved
 			
 	def processIt(self,data):
 		date=getDate(data)
