@@ -3,7 +3,6 @@ from matplotlib import pyplot as plt
 data=open('matusGym.txt').readlines()
 errorCount=0
 correctCount=0
-#data=open('chibiGymData.py').readlines()
 #clean data from empty entries and denied acess
 db=[v for v in data if len(v)>1 and 'access' not in v.lower()][::-1]
 
@@ -11,21 +10,11 @@ def getDate(s):
 	return datetime.datetime.strptime(s[0:19],'%Y-%m-%d %H:%M:%S')
 
 def convertDate(date):
-	#convert minutes into percent, 30mins==%50
+	#convert minutes into percent, 30mins==50
 	minutes=int(int(date.strftime('%M'))*1.666)
 	hours=date.strftime('%H')
 	return float(f'{hours}.{minutes}')
 
-def debugPrint():
-	print('*********************************************************************************************')
-	sample=db[iN-8:iN+5]
-	print(f'Missing exit from entry of {entry}')
-	print(f'Processing now {l}')
-	entryString=entry.strftime('%Y-%m-%d')
-	entryNexDatString=(entry+datetime.timedelta(1)).strftime('%Y-%m-%d')
-	print(f'all same day Data = {[v for v in db if entryString in v]}')
-	print(f'all next day Data = {[v for v in db if entryNexDatString in v]}')
-	print('**********************************************************************************************')
 
 class Workout():
 
@@ -36,77 +25,61 @@ class Workout():
 		self.error=0
 		self.workouts=[]
 		self.timeOfDay=[]
-
-	def addWorkout(self,wLenght,wTime):
-		self.workouts.append(wLenght)
-		self.timeOfDay.append(wTime)
-
-	def addEntry(self,entryRaw):
-		entry=getDate(entryRaw)
-		if self.entry:
-			gap=(entry-self.entry).total_seconds()/60
-			if gap>360: #ignore all bathroom/changing room entries
-				try:
-					workoutLenght=(self.exit-self.entry).total_seconds()/60
-	
-					if workoutLenght>200:
-						if self.exit():
-							print('Missing exit')
-					
-					self.addWorkout(workoutLenght,convertDate(self.entry))
-					self.good+=1
-					self.exit=None
-					self.entry=entry
-				except TypeError: #if exit doesnt exists
-					self.error+=1
-					self.entry=entry
-		else:
-			self.entry=entry
-
-	def addExit(self,exitRaw):
-		#def missingExit():
-			#print((exit-self.entry).total_seconds()/60)
-		def doubleExit():
-			
-			if 'exit' in db[iN-1]: # if double exit
-				if self.entry: #if more than double exit
-					
-					workoutLenght=(self.exit-self.entry).total_seconds()/60
-					self.addWorkout(workoutLenght,convertDate(self.entry))
-					self.entry=None
-				
-		doubleExit()
+		self.lastAdded=self.entry
+		self.lastAddedIsEntry=True
 		
-		exit=getDate(exitRaw)
-		#missingExit()
-		self.exit=exit
-
-timeOfDayList=[]
-workoutLenghtList=[]
-entry=getDate(db[0])
-exit=None
+	def processWorkout(self,date):
+		if self.entry and self.exit:
+			workoutTime=(self.exit-self.entry).total_seconds()/60
+			
+			self.workouts.append(workoutTime)
+			self.timeOfDay.append(convertDate(date))
+			self.good+=1
+			self.discartData()
+		else:
+			self.error+=1
+			
+	def discartData(self):
+		self.entry,self.exit=None,None
+		
+	def removeWrongWorkouts(self):
+		#counts average and remove off average data
+		averageWorkoutLimit=(sum(self.workouts)/len(self.workouts))*4
+		cleanedWorkouts=[]
+		for w in self.workouts:
+			iN=self.workouts.index(w)
+			if w < averageWorkoutLimit:
+				cleanedWorkouts.append(w)
+			else:
+				self.timeOfDay.pop(iN)
+		self.workouts=cleanedWorkouts
+			
+	def processIt(self,data):
+		date=getDate(data)
+		gap=(date-self.lastAdded).total_seconds()/60
+		if gap>360:
+			self.processWorkout(date)
+			if 'entry' in data:
+				self.entry=date
+		if 'exit' in data:
+			self.exit=date
+		self.lastAdded=date
 
 w=Workout()
 for l in db[1:]:
-	iN=db.index(l)
 	print(l)
-	if 'exit' in l:
-		w.addExit(l)
-	if 'entry' in l:
-		w.addEntry(l)
-
-
+	w.processIt(l)
+w.removeWrongWorkouts()
 
 x=w.timeOfDay
 y=w.workouts
 plt.scatter(x,y,alpha=0.3)
 plt.xlim(0,24)
-#plt.xlim(0,200)
-#plt.ylim(0,max(workoutLenghtList)+20)
+plt.ylim(0,max(w.workouts)+20)
 plt.xlabel('Time of day')
 plt.ylabel('Workout lenght (mins)')
 plt.grid()
-print(f'So far you went to this gym {len(workoutLenghtList)} times')
-print(f'Wrong data entries = {errorCount}')
+print(f'So far you went to this gym {len(w.workouts)+w.error} times')
+print(f'Corrupted data count = {w.error} ')
 plt.show()
 pass
